@@ -2,7 +2,7 @@
 
 Single-channel speech enhancement with explicit phase reconstruction. The architecture builds on MP-SENet and extends it in three ways: a geometry-based phase decoder that produces several phase candidates (PhaseGeometryDecoder), multi-scale channel attention (MulCA) right after the encoder, and hybrid TS blocks where self-attention is paired with a lightweight recurrent-convolutional "memory" branch. Training and evaluation are done on VoiceBank+DEMAND (16 kHz).
 
-The best configuration (A5) reaches PESQ 3.57 and CBAK 4.02 with 2.67M parameters. With PCS post-processing it reaches PESQ 3.72, which is on par with Mamba-SEUNet+PCS at less than half the model size. The lightweight A6 variant (PESQ 3.48) shrinks the network roughly 2.5× with almost no loss in quality.
+The best configuration (A5) reaches PESQ 3.57 with 2.67M parameters. With PCS post-processing it reaches PESQ 3.72, which is on par with Mamba-SEUNet+PCS at less than half the model size. The lightweight A6 variant (PESQ 3.48) shrinks the network roughly 2.5× with almost no loss in quality.
 
 ## Architecture
 
