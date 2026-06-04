@@ -8,17 +8,6 @@ The best configuration (A5) reaches PESQ 3.57 and CBAK 4.02 with 2.67M parameter
 
 ![Geoformer-Phase++ architecture](docs/architecture.png)
 
-The pipeline in short:
-
-1. The waveform goes to the frequency domain via STFT (n_fft=400, hop=100); the magnitude is power-compressed with exponent 0.3.
-2. A 5-channel TF representation is built from the spectrum: compressed magnitude, cos φ and sin φ, group delay (GD), and instantaneous angular frequency (IAF). The set of channels is controlled by `phase_input_feature_mode`.
-3. A dense encoder with dilated convolutions lifts the representation to 64 channels, after which MulCA reweights channels across several temporal scales.
-4. Four TS-Hybrid blocks alternately process the time and frequency axes. Inside each block the self-attention output is mixed with a "memory" branch (GRU + depthwise convolution) through a learned gate.
-5. Two heads follow. The Mask Decoder predicts a multiplicative mask for the magnitude. The PhaseGeometryDecoder builds several phase candidates — an anchor estimate, one integrated from GD, one integrated from IAF, a refined one, and the noisy phase itself as a fallback (noisy skip) — and fuses them with a weighted average on the unit circle, where the weights come from a learned reliability map.
-6. The enhanced magnitude and phase are reassembled into a waveform via iSTFT.
-
-During training there is an additional MetricDiscriminator (a GAN branch that approximates PESQ) and a set of phase losses: IP/GD/IAF weighted by magnitude, explicit supervision of the geometry decoder heads, a KL loss on the reliability map, and a penalty against over-relying on the noisy-skip path. A two-stage curriculum is used: the metric and geometry parts of the loss are ramped in gradually (`metric_warmup_steps`, `geometry_warmup_steps`).
-
 ## Repository layout
 
 ```
@@ -75,21 +64,6 @@ Single GPU:
 python train.py --config config.yaml
 ```
 
-Multiple GPUs (DDP via torchrun):
-
-```bash
-torchrun --nproc_per_node=4 train.py --config config.yaml
-```
-
-What happens on launch:
-
-- the config is copied into `checkpoint_path`, and a `logs/` folder for TensorBoard is created there;
-- generator and discriminator checkpoints (`g_????????`, `do_????????`) are saved every `checkpoint_interval` steps, and training resumes automatically from the latest one found;
-- validation is PESQ-based: a quick pass on a subset of `quick_val_subset_size` files every `validation_interval` steps, and a full pass every `full_val_interval`; the best PESQ checkpoint is saved as `g_best` (after `best_checkpoint_start_epoch` epochs);
-- `torch.compile` is on by default (`compile_enabled: true`, reduce-overhead mode). If compilation misbehaves on your driver/torch combination, just turn it off in the config — it doesn't affect quality.
-
-With batch size 4 and 2-second segments, a single ~12 GB card is enough. Full A5 training is set for 400 epochs, but useful checkpoints appear much earlier.
-
 ### Ablations
 
 All experiment configs live in `configs/ablations/` and run with the same command:
@@ -100,7 +74,7 @@ python train.py --config configs/ablations/A5_full_stack.yaml
 
 | Config | What's enabled |
 |---|---|
-| A0 | base geometry decoder: 4 candidates, no curriculum, no MulCA, no hybrid blocks |
+| A0 | base: no curriculum, no MulCA, no hybrid blocks |
 | A1 | A0 + curriculum + robust validation-PESQ settings |
 | A2 | A1 + MulCA |
 | A3 | A1 + hybrid TS blocks |
@@ -147,16 +121,6 @@ python cal_metrics_vb.py \
 Run it from inside the `cal_metrics` folder — the script imports the neighboring `compute_metrics.py`. Filenames in both folders must match. For DNS-style data there's `cal_metrics_dns.py` with the same interface.
 
 `calculate_checkpoint_PESQ.py` is an old helper with hard-coded paths for the original MP-SENet checkpoints; it isn't directly compatible with the current model signature and is kept in the repo for reference.
-
-## Results on VoiceBank+DEMAND
-
-| Model | Params | PESQ | CBAK |
-|---|---|---|---|
-| A6 (lite) | ~1.1M | 3.48 | — |
-| A5 | 2.67M | 3.57 | 4.02 |
-| A5 + PCS | 2.67M | 3.72 | — |
-
-PCS (perceptual contrast stretching) is an external spectral post-processing step and is not part of this repository; the PCS numbers are reported for comparability with works that apply such post-processing (SEMamba, Mamba-SEUNet, and others).
 
 ## Reproducibility
 
