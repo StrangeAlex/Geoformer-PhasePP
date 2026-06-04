@@ -33,7 +33,7 @@ The best configuration (A5) reaches PESQ 3.57 with 2.67M parameters. With PCS po
 The project is set up with uv, Python ≥ 3.13, and PyTorch ≥ 2.10. The easiest path:
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/StrangeAlex/Geoformer-PhasePP
 cd Geoformer-PhasePP
 uv sync
 ```
